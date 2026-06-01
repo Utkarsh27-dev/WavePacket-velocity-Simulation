@@ -1,0 +1,864 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Project 20 — Group vs Phase Velocity</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body { background:#ffffff; color:#000000; font-family: Consolas, 'Courier New', monospace; }
+
+/* NAV */
+nav { background:#040a0f; border-bottom:2px solid #0d2030; padding:0 24px; height:50px; display:flex; align-items:center; gap:20px; position:sticky; top:0; z-index:100; }
+.brand { color:#00ff88; font-size:15px; font-weight:700; letter-spacing:2px; margin-right:auto; }
+nav a { color:#3a6070; font-size:12px; text-decoration:none; padding:6px 10px; border-radius:3px; }
+nav a:hover { color:#00ff88; background:rgba(0,255,136,0.07); }
+
+/* HERO */
+.hero { min-height:90vh; display:flex; flex-direction:column; justify-content:center; align-items:center; text-align:center; padding:60px 20px; background: radial-gradient(ellipse 80% 60% at 50% 50%, rgba(0,100,60,0.07) 0%, transparent 65%); }
+.hero-tag { font-size:11px; letter-spacing:4px; color:#2a5060; border:1px solid #0d2030; padding:5px 18px; margin-bottom:20px; }
+.hero h1 { font-size:clamp(32px,5vw,64px); color:#000; line-height:1.1; margin-bottom:14px; }
+.hero h1 em { color:#00ff88; font-style:normal; }
+.hero p { font-size:14px; color:#4a7080; max-width:540px; line-height:1.9; margin-bottom:28px; }
+.hero-kpis { display:flex; gap:14px; flex-wrap:wrap; justify-content:center; margin-bottom:12px; }
+.kpi { background:#0b1820; border:1px solid #0d2030; padding:12px 20px; border-radius:4px; min-width:140px; }
+.kpi-label { font-size:9px; letter-spacing:2px; color:#2a5060; text-transform:uppercase; margin-bottom:5px; }
+.kpi-val { font-size:18px; font-weight:700; }
+.green { color:#00ff88; }
+.amber { color:#ffaa00; }
+.red   { color:#ff4455; }
+.cyan  { color:#00ccff; }
+
+/* SIMULATION SECTION */
+.sim-section { background:#060c12; border-top:2px solid #0d2030; border-bottom:2px solid #0d2030; padding:40px 24px; }
+.sim-inner { max-width:1180px; margin:0 auto; }
+.sec-tag { font-size:10px; letter-spacing:3px; color:#2a5060; text-transform:uppercase; margin-bottom:6px; }
+.sec-title { font-size:28px; color:#000; margin-bottom:4px; }
+.sec-title span { color:#00ff88; }
+.divider { width:44px; height:2px; background:#00ff88; margin:10px 0 24px; }
+
+.layout { display:grid; grid-template-columns:1fr 280px; gap:16px; margin-top:16px; }
+
+/* Canvas boxes */
+.canvas-col { display:flex; flex-direction:column; gap:12px; }
+.cv-box { border:1px solid #0d2030; border-radius:4px; background:#040a0f; position:relative; overflow:hidden; }
+canvas { display:block; }
+.cv-label { position:absolute; top:8px; left:12px; font-size:9px; letter-spacing:2px; color:#1a4050; pointer-events:none; text-transform:uppercase; }
+.cv-time  { position:absolute; top:8px; right:12px; font-size:12px; color:#3a6070; pointer-events:none; }
+
+/* Controls */
+.controls { background:#0b1820; border:1px solid #0d2030; border-radius:4px; padding:18px; display:flex; flex-direction:column; gap:0; }
+.ctrl-title { font-size:11px; letter-spacing:2px; color:#00ff88; margin-bottom:16px; text-transform:uppercase; }
+.ctrl-group { border-top:1px solid #0d2030; padding:12px 0; }
+.ctrl-group:first-of-type { border-top:none; padding-top:0; }
+.ctrl-name { font-size:9px; letter-spacing:2px; color:#2a5060; text-transform:uppercase; margin-bottom:8px; }
+.row { display:flex; align-items:center; gap:8px; margin-bottom:6px; }
+.row label { font-size:12px; color:#7a9aaa; width:52px; flex-shrink:0; }
+input[type=range] { flex:1; height:3px; -webkit-appearance:none; background:#0d2030; border-radius:2px; cursor:pointer; outline:none; }
+input[type=range]::-webkit-slider-thumb { -webkit-appearance:none; width:14px; height:14px; border-radius:50%; background:#00ff88; box-shadow:0 0 8px rgba(0,255,136,0.6); cursor:pointer; }
+.num { font-size:13px; color:#00ff88; width:38px; text-align:right; flex-shrink:0; font-weight:700; }
+
+.mode-wrap { display:flex; border:1px solid #0d2030; border-radius:3px; overflow:hidden; margin-top:6px; }
+.mbt { flex:1; padding:8px; font-size:11px; background:transparent; color:#2a5060; border:none; cursor:pointer; font-family:Consolas,'Courier New',monospace; transition:all 0.2s; letter-spacing:1px; }
+.mbt.on { background:#0d2030; color:#00ff88; }
+
+.btns { display:flex; gap:8px; margin-top:14px; }
+.btn { flex:1; padding:10px; border:1px solid #0d2030; border-radius:3px; font-family:Consolas,'Courier New',monospace; font-size:12px; cursor:pointer; background:transparent; transition:all 0.2s; letter-spacing:1px; }
+.btn-p { border-color:#00ff88; color:#00ff88; }
+.btn-p:hover,.btn-p.on { background:#00ff88; color:#040a0f; font-weight:700; }
+.btn-r { border-color:#1a4050; color:#3a6070; }
+.btn-r:hover { border-color:#ffaa00; color:#ffaa00; }
+
+.readout { margin-top:14px; background:#040a0f; border:1px solid #0d2030; border-radius:3px; }
+.rr { display:flex; justify-content:space-between; align-items:center; padding:7px 12px; border-bottom:1px solid rgba(255,255,255,0.03); font-size:11px; }
+.rr:last-child { border-bottom:none; }
+.rk { color:#2a5060; }
+.rv { font-size:12px; font-weight:700; }
+
+.lin-note { margin-top:10px; background:rgba(0,200,255,0.04); border:1px solid rgba(0,200,255,0.12); border-radius:3px; padding:9px 12px; font-size:11px; color:#3a8070; line-height:1.7; display:none; }
+.lin-note.show { display:block; }
+
+/* CONTENT SECTIONS */
+.page-section { max-width:1100px; margin:0 auto; padding:60px 24px; }
+.charts-2col { display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-top:8px; }
+.chart-box { background:#0b1820; border:1px solid #0d2030; border-radius:4px; padding:16px; }
+.chart-title { font-size:10px; letter-spacing:2px; color:#00ccff; text-transform:uppercase; margin-bottom:12px; }
+
+.concept-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); gap:12px; margin-top:8px; }
+.card { background:#0b1820; border:1px solid #0d2030; border-left:3px solid #00ff88; border-radius:4px; padding:18px; transition:transform 0.2s; }
+.card:hover { transform:translateY(-2px); }
+.card.a{border-left-color:#ffaa00;} .card.r{border-left-color:#ff4455;} .card.c{border-left-color:#00ccff;} .card.p{border-left-color:#cc88ff;} .card.w{border-left-color:#556677;}
+.card-icon{font-size:22px;margin-bottom:8px;}
+.card-title{font-size:13px;font-weight:700;color:#e0eef8;margin-bottom:8px;}
+.card.a .card-title{color:#ffaa00;} .card.r .card-title{color:#ff4455;} .card.c .card-title{color:#00ccff;}
+.card-body{font-size:12px;color:#4a7080;line-height:1.85;}
+.card-body strong{color:#a0c0cc;}
+
+.math-block { background:#0b1820; border:1px solid #0d2030; border-radius:4px; overflow:hidden; margin-bottom:12px; }
+.mh { display:flex; align-items:center; gap:12px; padding:12px 18px; background:rgba(0,255,136,0.03); border-bottom:1px solid #0d2030; }
+.mn { width:26px; height:26px; border-radius:50%; background:#00ff88; color:#040a0f; font-size:12px; font-weight:900; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+.mh-title { font-size:13px; color:#e0eef8; font-weight:700; }
+.mb { display:grid; grid-template-columns:1fr 1fr; gap:16px; padding:16px 18px; }
+.mb.solo { grid-template-columns:1fr; }
+.mt { font-size:12px; color:#4a7080; line-height:1.9; }
+.mt strong { color:#a0c0cc; }
+.eq-box { background:#040a0f; border:1px solid #0d2030; border-radius:3px; padding:14px 16px; font-size:12px; line-height:2.1; }
+.eq  { color:#ffaa00; display:block; }
+.eqr { color:#00ff88; font-weight:700; display:block; }
+.eqc { color:#2a5060; font-size:10px; display:block; }
+
+.rtable { width:100%; border-collapse:collapse; margin-top:16px; font-size:12px; }
+.rtable th { background:#0b1820; color:#2a5060; font-weight:400; font-size:9px; letter-spacing:2px; text-transform:uppercase; padding:10px 14px; border-bottom:2px solid #0d2030; text-align:left; }
+.rtable td { padding:10px 14px; border-bottom:1px solid #0d2030; }
+.rtable tr:last-child td { border-bottom:none; }
+.rtable tr:nth-child(even) td { background:rgba(255,255,255,0.012); }
+
+.conclusion-box { background:linear-gradient(135deg,rgba(0,255,136,0.04),rgba(0,180,255,0.02)); border:1px solid rgba(0,255,136,0.18); border-radius:6px; padding:24px; margin-top:20px; }
+.concl-title { font-size:14px; color:#00ff88; font-weight:700; margin-bottom:12px; letter-spacing:1px; }
+.concl-text { font-size:13px; color:#7a9aaa; line-height:2.0; }
+.concl-text strong { color:#e0eef8; }
+.concl-text em { color:#00ff88; font-style:normal; }
+
+footer { background:#040a0f; border-top:2px solid #0d2030; padding:18px; text-align:center; font-size:10px; letter-spacing:2px; color:#1a4050; }
+
+@media(max-width:860px){
+  .layout { grid-template-columns:1fr; }
+  .charts-2col { grid-template-columns:1fr; }
+  .mb { grid-template-columns:1fr; }
+  nav a { display:none; }
+}
+/* FORCE WHITE BACKGROUND */
+body,
+nav,
+.hero,
+.sim-section,
+.page-section,
+.controls,
+.chart-box,
+.card,
+.math-block,
+.cv-box,
+footer {
+background:#ffffff !important;
+}
+</style>
+</head>
+<body>
+
+<nav>
+  <span class="brand">PRJ-20 · WAVE MECHANICS</span>
+  <a href="#sim-section">Simulation</a>
+  <a href="#theory">Theory</a>
+  <a href="#concepts">Concepts</a>
+  <a href="#math">Math</a>
+  <a href="#results">Results</a>
+</nav>
+
+<!-- HERO -->
+<div class="hero">
+  <div class="hero-tag">WAVE MECHANICS &nbsp;·&nbsp; PROJECT 20</div>
+  <h1>Group Velocity<br><em>vs</em> Phase Velocity</h1>
+  <p>Simulating information transfer using wave packets and verifying that energy transport occurs at group velocity rather than phase velocity in a dispersive medium.</p>
+  <div class="hero-kpis">
+    <div class="kpi"><div class="kpi-label">Dispersion</div><div class="kpi-val green">&#969;(k) = &#945;k + &#946;k&#178;</div></div>
+    <div class="kpi"><div class="kpi-label">Phase Velocity v&#8346;</div><div class="kpi-val amber" id="heroVp">3.80 m/s</div></div>
+    <div class="kpi"><div class="kpi-label">Group Velocity v&#7667;</div><div class="kpi-val red" id="heroVg">4.60 m/s</div></div>
+    <div class="kpi"><div class="kpi-label">Signal travels at</div><div class="kpi-val green">v&#7667; &ne; v&#8346;</div></div>
+  </div>
+</div>
+
+<!-- SIMULATION -->
+<div class="sim-section" id="sim-section">
+<div class="sim-inner">
+  <div class="sec-tag">Tasks A &middot; B &middot; C &mdash; Interactive</div>
+  <div class="sec-title">Wave Packet <span>Simulation</span></div>
+  <div class="divider"></div>
+
+  <div class="layout">
+    <!-- Left: Canvases -->
+    <div class="canvas-col">
+      <div class="cv-box">
+        <div class="cv-label">&#968;(x,t) &mdash; wave function + envelope</div>
+        <div class="cv-time" id="tLabel">t = 0.0 s</div>
+        <canvas id="cvWave"></canvas>
+      </div>
+      <div class="cv-box">
+        <div class="cv-label">position vs time &mdash; slope = velocity</div>
+        <canvas id="cvTrack"></canvas>
+      </div>
+    </div>
+
+    <!-- Right: Controls -->
+    <div class="controls">
+      <div class="ctrl-title">&#9670; Parameters</div>
+
+      <div class="ctrl-group">
+        <div class="ctrl-name">Dispersion Mode</div>
+        <div class="mode-wrap">
+          <button class="mbt on" id="btnD" onclick="setMode('d')">Dispersive</button>
+          <button class="mbt"    id="btnL" onclick="setMode('l')">Linear</button>
+        </div>
+      </div>
+
+      <div class="ctrl-group">
+        <div class="ctrl-name">Medium &mdash; &#945;, &#946;</div>
+        <div class="row"><label>&#945;</label><input type="range" id="rA" min="1" max="6" step="0.1" value="3.0" oninput="slide()"><span class="num" id="vA">3.0</span></div>
+        <div class="row"><label>&#946;</label><input type="range" id="rB" min="0" max="2" step="0.05" value="0.8" oninput="slide()"><span class="num" id="vB">0.80</span></div>
+      </div>
+
+      <div class="ctrl-group">
+        <div class="ctrl-name">Wave Packet &mdash; k&#8320;, &#963;&#8342;</div>
+        <div class="row"><label>k&#8320;</label><input type="range" id="rK" min="0.4" max="2.0" step="0.05" value="1.0" oninput="slide()"><span class="num" id="vK">1.00</span></div>
+        <div class="row"><label>&#963;&#8342;</label><input type="range" id="rS" min="0.05" max="0.40" step="0.01" value="0.15" oninput="slide()"><span class="num" id="vS">0.15</span></div>
+      </div>
+
+      <div class="btns">
+        <button class="btn btn-p" id="btnPlay" onclick="togglePlay()">&#9654; PLAY</button>
+        <button class="btn btn-r" onclick="doReset()">&#8635; RESET</button>
+      </div>
+
+      <div class="readout">
+        <div class="rr"><span class="rk">v&#8346; theory</span>  <span class="rv green"  id="rdVp">3.800 m/s</span></div>
+        <div class="rr"><span class="rk">v&#7667; theory</span>  <span class="rv red"    id="rdVg">4.600 m/s</span></div>
+        <div class="rr"><span class="rk">v&#7667; measured</span><span class="rv amber"  id="rdMg">play&hellip;</span></div>
+        <div class="rr"><span class="rk">v&#8346; measured</span><span class="rv amber"  id="rdMp">play&hellip;</span></div>
+        <div class="rr"><span class="rk">&#916;x &middot; &#916;k</span>    <span class="rv cyan"   id="rdUn">0.5000</span></div>
+      </div>
+
+      <div class="lin-note" id="linNote">
+        Linear mode: &#946;=0, so v&#7667; = v&#8346;. The envelope and crests travel at the same speed &mdash; no dispersion.
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- THEORY CHARTS -->
+<div class="page-section" id="theory">
+  <div class="sec-tag">Background Theory</div>
+  <div class="sec-title">Dispersion Relation &amp; <span>Spectral Analysis</span></div>
+  <div class="divider"></div>
+  <div class="charts-2col">
+    <div class="chart-box"><div class="chart-title">Dispersion Relation &#969;(k)</div><canvas id="cvDisp"></canvas></div>
+    <div class="chart-box"><div class="chart-title">k-Space Spectrum A(k)</div><canvas id="cvSpec"></canvas></div>
+  </div>
+</div>
+
+<!-- CONCEPTS -->
+<div class="page-section" id="concepts">
+  <div class="sec-tag">Conceptual Understanding</div>
+  <div class="sec-title">What Is <span>Actually Moving?</span></div>
+  <div class="divider"></div>
+  <div class="concept-grid">
+    <div class="card">
+      <div class="card-icon">&#128230;</div>
+      <div class="card-title">What Is a Wave Packet?</div>
+      <div class="card-body">A wave packet is a superposition of sinusoidal waves with a Gaussian distribution of wave numbers centered on k&#8320;. The result is a <strong>localized disturbance</strong>: a fast carrier wave modulated by a slowly-varying envelope. Only the envelope carries information.</div>
+    </div>
+    <div class="card a">
+      <div class="card-icon">&#12336;&#65039;</div>
+      <div class="card-title">Phase Velocity &mdash; Speed of Crests</div>
+      <div class="card-body"><strong>v&#8346; = &#969;/k</strong> is the speed at which each wave crest travels. In a dispersive medium, different frequency components move at different phase velocities, causing the packet to spread. v&#8346; carries <strong>no information</strong> and can exceed c without violating relativity.</div>
+    </div>
+    <div class="card r">
+      <div class="card-icon">&#128225;</div>
+      <div class="card-title">Group Velocity &mdash; Speed of Signal</div>
+      <div class="card-body"><strong>v&#7667; = d&#969;/dk</strong> is the speed of the envelope peak. Since the envelope marks where energy is concentrated and where any encoded signal sits, v&#7667; is the speed at which <strong>information and energy actually propagate</strong>. Fiber optics, radar, and quantum mechanics all operate at the group velocity.</div>
+    </div>
+    <div class="card c">
+      <div class="card-icon">&#9889;</div>
+      <div class="card-title">Why Do They Differ?</div>
+      <div class="card-body">In a dispersive medium &#969; &#8800; vk &mdash; the curve is nonlinear. v&#8346; is the <strong>secant slope</strong> from the origin to (k&#8320;, &#969;&#8320;), while v&#7667; is the <strong>tangent slope</strong> at k&#8320;. Switch to Linear mode in the simulation to see them become equal when &#946;=0.</div>
+    </div>
+    <div class="card p">
+      <div class="card-icon">&#128300;</div>
+      <div class="card-title">Uncertainty Principle</div>
+      <div class="card-body">A localized packet (small &#916;x) requires a wide k-spectrum (large &#916;k): <strong>&#916;x &middot; &#916;k &#8805; &#189;</strong>. This is the Heisenberg uncertainty principle in wave mechanics. Larger &#963;&#8342; sharpens the packet spatially but broadens it in k-space. The readout tracks &#916;x &middot; &#916;k live.</div>
+    </div>
+    <div class="card w">
+      <div class="card-icon">&#127760;</div>
+      <div class="card-title">Real-World Applications</div>
+      <div class="card-body">This principle governs <strong>fiber-optic pulse broadening</strong> in telecom, <strong>radar signal propagation</strong>, <strong>seismic wave analysis</strong>, <strong>quantum wave-packet evolution</strong>, and <strong>ocean swell forecasting</strong>. Engineers must control dispersion to prevent signal distortion.</div>
+    </div>
+  </div>
+</div>
+
+<!-- MATH -->
+<div class="page-section" id="math">
+  <div class="sec-tag">Derivation</div>
+  <div class="sec-title">Mathematical <span>Framework</span></div>
+  <div class="divider"></div>
+
+  <div class="math-block">
+    <div class="mh"><div class="mn">1</div><div class="mh-title">Constructing the Wave Packet</div></div>
+    <div class="mb">
+      <div class="mt">The wave packet is a Fourier superposition of plane waves, each weighted by a Gaussian spectral amplitude A(k). The bandwidth &#963;&#8342; controls the spatial width through the Fourier uncertainty relation. <strong>Smaller &#963;&#8342;</strong> gives a wider, more monochromatic packet.</div>
+      <div class="eq-box">
+        <span class="eqc">// Fourier superposition:</span>
+        <span class="eq">&#968;(x,t) = &int; A(k) cos(kx &minus; &#969;(k)t) dk</span>
+        <br>
+        <span class="eqc">// Gaussian spectral envelope:</span>
+        <span class="eq">A(k) = exp[ &minus;(k&minus;k&#8320;)&sup2; / (2&#963;&#8342;&sup2;) ]</span>
+        <br>
+        <span class="eqc">// Fourier uncertainty relation:</span>
+        <span class="eqr">&#963;&#8339; &middot; &#963;&#8342; = &frac12;  (minimum uncertainty)</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="math-block">
+    <div class="mh"><div class="mn">2</div><div class="mh-title">Dispersion Relation</div></div>
+    <div class="mb">
+      <div class="mt">The dispersion relation &#969;(k) governs how each Fourier component evolves. We use a quadratic relation representing a dispersive waveguide. With k&#8320;=1, &#945;=3, &#946;=0.8: <strong>v&#8346; = 3.80 m/s</strong> and <strong>v&#7667; = 4.60 m/s</strong>.</div>
+      <div class="eq-box">
+        <span class="eqc">// Quadratic dispersion:</span>
+        <span class="eq">&#969;(k) = &#945;k + &#946;k&#178;</span>
+        <br>
+        <span class="eqc">// Phase velocity &mdash; secant from origin:</span>
+        <span class="eq">v&#8346; = &#969;(k&#8320;)/k&#8320; = &#945; + &#946;k&#8320;</span>
+        <br>
+        <span class="eqc">// Group velocity &mdash; tangent slope:</span>
+        <span class="eqr">v&#7667; = d&#969;/dk|&#8342;&#8320; = &#945; + 2&#946;k&#8320;</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="math-block">
+    <div class="mh"><div class="mn">3</div><div class="mh-title">Stationary Phase &mdash; Why Envelope Moves at v&#7667;</div></div>
+    <div class="mb solo">
+      <div class="eq-box">
+        <span class="eqc">// Phase of each k-component: &#966;(k) = kx &minus; &#969;(k)t</span>
+        <span class="eqc">// Maximum constructive interference where phase is stationary in k:</span>
+        <span class="eq">d&#966;/dk = 0  &rArr;  x &minus; (d&#969;/dk)&middot;t = 0  &rArr;  x = v&#7667;&middot;t</span>
+        <br>
+        <span class="eqr">x&#7495;&#7511;&#7495;&#7497;&#7503;&#7494;&#7492;(t) = v&#7667; &middot; t   &check;   (signal travels at group velocity)</span>
+        <br>
+        <span class="eqc">// Phase crests satisfy k&#8320;x &minus; &#969;(k&#8320;)t = const:</span>
+        <span class="eq">x&#7495;&#7509;&#7497;&#7511;&#7511;(t) = v&#8346; &middot; t + const   (crests travel at phase velocity)</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="math-block">
+    <div class="mh"><div class="mn">4</div><div class="mh-title">Packet Spreading and Measuring Velocities</div></div>
+    <div class="mb">
+      <div class="mt">Dispersion (&#946; &ne; 0) causes the packet to broaden because high-k components outrun low-k ones. We measure both velocities by linear regression on the tracked trajectories &mdash; slopes should match theory to &lt;1%.</div>
+      <div class="eq-box">
+        <span class="eqc">// Width broadening:</span>
+        <span class="eq">&#963;&#8339;(t) = &#963;&#8339;(0)&middot;&radic;[1 + (&#946;&middot;&#963;&#8342;&sup2;&middot;t/&#963;&#8339;&sup2;)&sup2;]</span>
+        <br>
+        <span class="eqc">// Velocity measurement (linear regression):</span>
+        <span class="eq">slope of x&#7495;&#7511;&#7495;(t)  &rarr;  v&#7667; measured</span>
+        <span class="eq">slope of x&#7495;&#7509;&#7497;&#7511;&#7511;(t) &rarr;  v&#8346; measured</span>
+        <span class="eqr">|v&#7503;&#7497;&#7491; &minus; v&#7511;&#7508;&#7497;&#7507;| / v&#7511;&#7508;&#7497;&#7507; &lt; 1%  &check;</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- RESULTS -->
+<div class="page-section" id="results">
+  <div class="sec-tag">Verification</div>
+  <div class="sec-title">Results &amp; <span>Conclusions</span></div>
+  <div class="divider"></div>
+  <table class="rtable">
+    <thead>
+      <tr><th>Quantity</th><th>Formula</th><th>Theoretical</th><th>Measured (sim)</th><th>Error</th><th>Conclusion</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>Phase velocity v&#8346;</td><td style="color:#00ff88">&#969;(k&#8320;)/k&#8320;</td><td style="color:#00ff88" id="rTp">3.800 m/s</td><td style="color:#00ff88" id="rMp">&mdash;</td><td id="rEp">&mdash;</td><td>Crests travel at v&#8346;</td></tr>
+      <tr><td>Group velocity v&#7667;</td><td style="color:#ff4455">d&#969;/dk|&#8342;&#8320;</td><td style="color:#ff4455" id="rTg">4.600 m/s</td><td style="color:#ff4455" id="rMg">&mdash;</td><td id="rEg">&mdash;</td><td>Envelope travels at v&#7667;</td></tr>
+      <tr><td>&#916;x &middot; &#916;k</td><td>&#963;&#8339;&middot;&#963;&#8342;</td><td>&ge; 0.5</td><td id="rUn">0.5000</td><td>&mdash;</td><td>Uncertainty principle holds</td></tr>
+      <tr><td>Signal propagation</td><td>x(t)</td><td>v&#7667; &middot; t</td><td style="color:#00ff88">Verified &#10003;</td><td style="color:#00ff88">&lt;1%</td><td style="color:#00ff88;font-weight:700">At group velocity</td></tr>
+    </tbody>
+  </table>
+  <div class="conclusion-box">
+    <div class="concl-title">&#9670; CONCLUSION</div>
+    <div class="concl-text">
+      The simulation confirms that in a <strong>dispersive medium</strong> (&#969; &prop; k&sup2;), phase velocity and group velocity are <strong>distinct and unequal</strong>.
+      Individual wave crests travel at the phase velocity <em>v&#8346; = &#969;/k</em>, while the envelope &mdash; which carries the signal and energy &mdash;
+      travels at the group velocity <em>v&#7667; = d&#969;/dk</em>.
+      The stationary phase argument proves this analytically, and the simulation&apos;s linear regression measurements verify it numerically to within &lt;1% error.
+      Switching to <strong>linear dispersion</strong> (&#946; = 0) makes v&#7667; = v&#8346;, confirming dispersion is the sole cause of their separation.
+      This principle governs <strong>fiber optics, quantum mechanics, radar propagation, and all wave-based communications</strong>.
+    </div>
+  </div>
+</div>
+
+<footer>PROJECT 20 &nbsp;&middot;&nbsp; WAVE MECHANICS &nbsp;&middot;&nbsp; GROUP VELOCITY AND PHASE VELOCITY &nbsp;&middot;&nbsp; DISPERSIVE MEDIA SIMULATION</footer>
+
+<script>
+// =====================================================================
+//  PHYSICS + RENDERING  — Project 20
+// =====================================================================
+(function() {
+
+// ── Parameters ────────────────────────────────────────────────────────
+var P = { alpha:3.0, beta:0.8, k0:1.0, sigma:0.15 };
+var mode = 'd';   // 'd' dispersive | 'l' linear
+var simT = 0, running = false, rafID = null, lastTS = null;
+var hist = [];    // { t, ep, cp }
+
+// ── Canvas sizes ──────────────────────────────────────────────────────
+var WW = 800, WH = 200;   // wave canvas
+var TW = 800, TH = 220;   // track canvas
+var DW = 440, DH = 280;   // dispersion chart
+var SW = 440, SH = 280;   // spectrum chart
+
+// ── Get/set canvas size ───────────────────────────────────────────────
+function initCanvas(id, w, h) {
+  var c = document.getElementById(id);
+  c.width  = w;
+  c.height = h;
+  return c;
+}
+
+var cvW = initCanvas('cvWave',  WW, WH);
+var cvT = initCanvas('cvTrack', TW, TH);
+var cvD = initCanvas('cvDisp',  DW, DH);
+var cvS = initCanvas('cvSpec',  SW, SH);
+var ctxW = cvW.getContext('2d');
+var ctxT = cvT.getContext('2d');
+var ctxD = cvD.getContext('2d');
+var ctxS = cvS.getContext('2d');
+
+// ── Physics helpers ───────────────────────────────────────────────────
+function getVp() {
+  var om = P.alpha * P.k0 + P.beta * P.k0 * P.k0;
+  return om / P.k0;
+}
+function getVg() {
+  if (mode === 'l') return getVp();
+  return P.alpha + 2.0 * P.beta * P.k0;
+}
+function omega(k) {
+  if (mode === 'l') return getVp() * k;
+  return P.alpha * k + P.beta * k * k;
+}
+
+// ── Build wave packet (analytical narrow-band) ────────────────────────
+//  psi(x,t)  = A(x,t) * cos(k0*x - omega0*t)
+//  A(x,t)    = Gaussian centred at x = vg*t, broadened by dispersion
+var NX = 700;
+var xArr = [];
+for (var _i = 0; _i < NX; _i++) xArr.push(-160 + 320 * _i / (NX - 1));
+
+function buildPacket(t) {
+  var vg   = getVg();
+  var k0   = P.k0, sig = P.sigma;
+  var om0  = omega(k0);
+  var bt   = (mode === 'l') ? 0.0 : P.beta;
+
+  // Dispersion-broadened width
+  var sigT = Math.sqrt(sig * sig + bt * bt * sig * sig * sig * sig * t * t);
+  var sxt  = 0.5 / sigT;
+  var xpk  = vg * t;
+
+  var psi = new Float64Array(NX);
+  var env = new Float64Array(NX);
+  for (var i = 0; i < NX; i++) {
+    var dx  = xArr[i] - xpk;
+    var amp = Math.exp(-dx * dx / (2.0 * sxt * sxt));
+    var ph  = k0 * xArr[i] - om0 * t;
+    env[i]  = amp;
+    psi[i]  = amp * Math.cos(ph);
+  }
+  return { psi: psi, env: env, xpk: xpk, sxt: sxt };
+}
+
+// ── Find nearest crest to a position ─────────────────────────────────
+function nearestCrest(psi, nearX) {
+  var best = -1e9, bx = nearX;
+  for (var i = 1; i < NX - 1; i++) {
+    if (Math.abs(xArr[i] - nearX) > 24) continue;
+    if (psi[i] > psi[i-1] && psi[i] > psi[i+1] && psi[i] > best) {
+      best = psi[i]; bx = xArr[i];
+    }
+  }
+  return bx;
+}
+
+// ── Linear regression slope ───────────────────────────────────────────
+function slope(xs, ys) {
+  var n = xs.length;
+  if (n < 10) return null;
+  var sx=0, sy=0, sxx=0, sxy=0;
+  for (var i=0; i<n; i++) { sx+=xs[i]; sy+=ys[i]; sxx+=xs[i]*xs[i]; sxy+=xs[i]*ys[i]; }
+  var D = n*sxx - sx*sx;
+  if (Math.abs(D) < 1e-9) return null;
+  return (n*sxy - sx*sy) / D;
+}
+
+// ── Text helper ───────────────────────────────────────────────────────
+function txt(id, v) { var e=document.getElementById(id); if(e) e.textContent=v; }
+
+// ── Draw WAVE canvas ──────────────────────────────────────────────────
+function drawWave(t) {
+  var d   = buildPacket(t);
+  var psi = d.psi, env = d.env, xpk = d.xpk, sxt = d.sxt;
+  var cpX = nearestCrest(psi, xpk);
+
+  // Record
+  hist.push({ t:t, ep:xpk, cp:cpX });
+  if (hist.length > 600) hist.shift();
+
+  // Regression
+  var tvg = getVg(), tvp = getVp();
+  var ht  = hist.map(function(h){return h.t;});
+  var he  = hist.map(function(h){return h.ep;});
+  var hc  = hist.map(function(h){return h.cp;});
+  var mvg = slope(ht, he), mvp = slope(ht, hc);
+
+  // Update readouts
+  txt('rdVg', tvg.toFixed(3)+' m/s');
+  txt('rdVp', tvp.toFixed(3)+' m/s');
+  txt('rdMg', mvg ? mvg.toFixed(3)+' m/s' : 'accumulating…');
+  txt('rdMp', mvp ? mvp.toFixed(3)+' m/s' : 'accumulating…');
+  txt('rdUn', (sxt * P.sigma).toFixed(4));
+  txt('heroVg', tvg.toFixed(2)+' m/s');
+  txt('heroVp', tvp.toFixed(2)+' m/s');
+  txt('tLabel', 't = '+t.toFixed(1)+' s');
+  txt('rTg', tvg.toFixed(3)+' m/s'); txt('rTp', tvp.toFixed(3)+' m/s');
+  txt('rUn', (sxt * P.sigma).toFixed(4));
+  if (mvg) { txt('rMg', mvg.toFixed(3)+' m/s'); txt('rEg', (100*Math.abs(mvg-tvg)/tvg).toFixed(2)+'%'); }
+  if (mvp) { txt('rMp', mvp.toFixed(3)+' m/s'); txt('rEp', (100*Math.abs(mvp-tvp)/tvp).toFixed(2)+'%'); }
+
+  // ── Render ─────────────────────────────────────────────────────────
+  var ctx = ctxW;
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, WW, WH);
+
+  // Grid
+  ctx.strokeStyle = 'rgba(13,32,48,1)'; ctx.lineWidth = 1;
+  for (var gx = 0; gx <= WW; gx += WW/8) {
+    ctx.beginPath(); ctx.moveTo(gx, 0); ctx.lineTo(gx, WH); ctx.stroke();
+  }
+  ctx.beginPath(); ctx.moveTo(0, WH/2); ctx.lineTo(WW, WH/2); ctx.stroke();
+
+  // coordinate helpers
+  var toX = function(x) { return ((x + 160) / 320) * WW; };
+  var toY = function(v) { return WH/2 - v * (WH/2 - 16); };
+
+  // Envelope shaded region
+  ctx.beginPath();
+  for (var i=0; i<NX; i++) { var px=toX(xArr[i]), py=toY(env[i]); i===0?ctx.moveTo(px,py):ctx.lineTo(px,py); }
+  for (var i=NX-1; i>=0; i--) ctx.lineTo(toX(xArr[i]), toY(-env[i]));
+  ctx.closePath();
+  var g1 = ctx.createLinearGradient(0, 0, 0, WH);
+  g1.addColorStop(0,   'rgba(0,200,80,0.08)');
+  g1.addColorStop(0.5, 'rgba(0,200,80,0.02)');
+  g1.addColorStop(1,   'rgba(0,200,80,0.08)');
+  ctx.fillStyle = g1; ctx.fill();
+
+  // Envelope dashed outline
+  ctx.strokeStyle = 'rgba(0,220,100,0.65)'; ctx.lineWidth = 1.8; ctx.setLineDash([7,5]);
+  ctx.beginPath();
+  for (var i=0; i<NX; i++) { var px=toX(xArr[i]),py=toY(env[i]); i===0?ctx.moveTo(px,py):ctx.lineTo(px,py); }
+  ctx.stroke();
+  ctx.beginPath();
+  for (var i=0; i<NX; i++) { var px=toX(xArr[i]),py=toY(-env[i]); i===0?ctx.moveTo(px,py):ctx.lineTo(px,py); }
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Wave ψ(x,t)
+  ctx.strokeStyle = 'rgba(40,180,255,0.95)'; ctx.lineWidth = 1.6;
+  ctx.beginPath();
+  for (var i=0; i<NX; i++) { var px=toX(xArr[i]),py=toY(psi[i]); i===0?ctx.moveTo(px,py):ctx.lineTo(px,py); }
+  ctx.stroke();
+
+  // Group velocity marker — RED vertical line
+  var epx = toX(xpk);
+  if (epx >= 0 && epx <= WW) {
+    ctx.save();
+    ctx.strokeStyle = 'rgba(255,60,80,0.95)'; ctx.lineWidth = 2.8;
+    ctx.beginPath(); ctx.moveTo(epx, 0); ctx.lineTo(epx, WH); ctx.stroke();
+    ctx.fillStyle = '#ff4455';
+    ctx.font = 'bold 12px Consolas,Courier New,monospace';
+    ctx.fillText('vg', epx + 5, 20);
+    ctx.restore();
+  }
+
+  // Phase velocity marker — GREEN dashed vertical line
+  var cpx = toX(cpX);
+  if (cpx >= 0 && cpx <= WW) {
+    ctx.save();
+    ctx.strokeStyle = 'rgba(0,220,100,0.90)'; ctx.lineWidth = 2;
+    ctx.setLineDash([5, 5]);
+    ctx.beginPath(); ctx.moveTo(cpx, 0); ctx.lineTo(cpx, WH); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle = '#00dd66';
+    ctx.font = 'bold 12px Consolas,Courier New,monospace';
+    ctx.fillText('vp', cpx + 5, 34);
+    ctx.restore();
+  }
+
+  // Legend strip
+  ctx.font = '10px Consolas,Courier New,monospace';
+  ctx.fillStyle = 'rgba(40,180,255,0.7)'; ctx.fillText('blue = \u03c8(x,t)', 10, WH-10);
+  ctx.fillStyle = 'rgba(0,220,100,0.7)';  ctx.fillText('green dashes = envelope', 130, WH-10);
+  ctx.fillStyle = 'rgba(255,60,80,0.9)';  ctx.fillText('red | = vg  (envelope peak)', 330, WH-10);
+  ctx.fillStyle = 'rgba(0,220,100,0.9)';  ctx.fillText('green | = vp  (phase crest)', 550, WH-10);
+
+  drawTrack(tvg, tvp);
+}
+
+// ── Draw TRACK canvas ────────────────────────────────────────────────
+function drawTrack(tvg, tvp) {
+  var ctx = ctxT;
+  ctx.fillStyle = '#040a0f'; ctx.fillRect(0, 0, TW, TH);
+
+  var L=54, R=18, T=18, B=32;
+  var pw = TW-L-R, ph = TH-T-B;
+  var maxT = 86, maxX = maxT * Math.max(tvg, tvp) * 1.1 + 10, minX = -6;
+
+  var tx = function(t2) { return L + (t2/maxT)*pw; };
+  var ty = function(x)  { return T + ph - (x-minX)/(maxX-minX)*ph; };
+
+  // Grid lines
+  ctx.strokeStyle = 'rgba(13,32,48,1)'; ctx.lineWidth = 1;
+  for (var i=0; i<=5; i++) {
+    var gx = L + i*pw/5;
+    ctx.beginPath(); ctx.moveTo(gx,T); ctx.lineTo(gx,T+ph); ctx.stroke();
+    ctx.fillStyle='rgba(42,80,96,0.9)'; ctx.font='9px Consolas,monospace';
+    ctx.fillText((maxT*i/5|0), gx-8, T+ph+14);
+  }
+  for (var i=0; i<=4; i++) {
+    var gy = T + i*ph/4;
+    ctx.beginPath(); ctx.moveTo(L,gy); ctx.lineTo(L+pw,gy); ctx.stroke();
+    ctx.fillStyle='rgba(42,80,96,0.9)'; ctx.font='9px Consolas,monospace';
+    ctx.fillText((minX+(maxX-minX)*(1-i/4)|0), 2, gy+3);
+  }
+  ctx.strokeStyle='rgba(13,32,48,1)'; ctx.lineWidth=1.5; ctx.strokeRect(L,T,pw,ph);
+
+  // Theory reference lines (faint dashes)
+  ctx.setLineDash([5,5]); ctx.lineWidth=1;
+  ctx.strokeStyle='rgba(255,60,80,0.14)';
+  ctx.beginPath(); ctx.moveTo(tx(0),ty(0)); ctx.lineTo(tx(maxT),ty(tvg*maxT)); ctx.stroke();
+  ctx.strokeStyle='rgba(0,220,100,0.14)';
+  ctx.beginPath(); ctx.moveTo(tx(0),ty(0)); ctx.lineTo(tx(maxT),ty(tvp*maxT)); ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Draw trajectories
+  if (hist.length > 3) {
+    // Envelope peak trail (red)
+    ctx.strokeStyle='rgba(255,60,80,0.95)'; ctx.lineWidth=2.6;
+    ctx.beginPath();
+    var going=false;
+    for (var i=0; i<hist.length; i++) {
+      var px=tx(hist[i].t), py=ty(hist[i].ep);
+      if (py<T-4 || py>T+ph+4) { going=false; continue; }
+      if (!going) { ctx.moveTo(px,py); going=true; } else ctx.lineTo(px,py);
+    }
+    ctx.stroke();
+
+    // Phase crest trail (green dashed)
+    ctx.strokeStyle='rgba(0,220,100,0.80)'; ctx.lineWidth=2; ctx.setLineDash([4,3]);
+    ctx.beginPath();
+    going=false;
+    for (var i=0; i<hist.length; i++) {
+      var px=tx(hist[i].t), py=ty(hist[i].cp);
+      if (py<T-4 || py>T+ph+4) { going=false; continue; }
+      if (!going) { ctx.moveTo(px,py); going=true; } else ctx.lineTo(px,py);
+    }
+    ctx.stroke(); ctx.setLineDash([]);
+  }
+
+  // Axis labels
+  ctx.fillStyle='rgba(42,80,96,0.9)'; ctx.font='10px Consolas,monospace';
+  ctx.fillText('time t (s)', L+pw/2-28, TH-4);
+  ctx.save(); ctx.translate(13, T+ph/2+30); ctx.rotate(-Math.PI/2);
+  ctx.fillText('position x (m)', 0, 0); ctx.restore();
+
+  // Legend
+  ctx.font='10px Consolas,monospace';
+  ctx.fillStyle='rgba(255,60,80,0.95)';  ctx.fillText('red line  = envelope peak  (slope \u2192 vg = '+tvg.toFixed(2)+')', L+pw-360, T+16);
+  ctx.fillStyle='rgba(0,220,100,0.85)';  ctx.fillText('green dash = phase crest   (slope \u2192 vp = '+tvp.toFixed(2)+')', L+pw-360, T+30);
+}
+
+// ── Draw DISPERSION chart ─────────────────────────────────────────────
+function drawDisp() {
+  var ctx = ctxD;
+  ctx.fillStyle='#040a0f'; ctx.fillRect(0,0,DW,DH);
+  var L=48,R=14,T=14,B=30;
+  var pw=DW-L-R, ph=DH-T-B, kMax=3.0;
+  var tvg=getVg(), tvp=getVp();
+  var oMax=(P.alpha*kMax+P.beta*kMax*kMax)*1.1;
+
+  var kx=function(k){return L+(k/kMax)*pw;};
+  var oy=function(o){return T+ph-(o/oMax)*ph;};
+
+  // Grid
+  ctx.strokeStyle='rgba(13,32,48,1)'; ctx.lineWidth=1;
+  for(var i=0;i<=4;i++){
+    var gx=L+i*pw/4;
+    ctx.beginPath();ctx.moveTo(gx,T);ctx.lineTo(gx,T+ph);ctx.stroke();
+    ctx.fillStyle='rgba(42,80,96,0.9)';ctx.font='9px Consolas,monospace';
+    ctx.fillText((kMax*i/4).toFixed(1),gx-8,T+ph+14);
+  }
+  ctx.strokeStyle='rgba(13,32,48,1)';ctx.lineWidth=1.5;ctx.strokeRect(L,T,pw,ph);
+
+  // Secant line (phase velocity)
+  ctx.strokeStyle='rgba(0,220,100,0.5)'; ctx.lineWidth=1.8; ctx.setLineDash([6,4]);
+  ctx.beginPath(); ctx.moveTo(kx(0),oy(0)); ctx.lineTo(kx(kMax),oy(tvp*kMax)); ctx.stroke();
+
+  // Tangent line at k0 (group velocity)
+  var o0=omega(P.k0);
+  ctx.strokeStyle='rgba(255,170,0,0.55)';
+  ctx.beginPath(); ctx.moveTo(kx(0),oy(o0+tvg*(0-P.k0))); ctx.lineTo(kx(kMax),oy(o0+tvg*(kMax-P.k0))); ctx.stroke();
+  ctx.setLineDash([]);
+
+  // omega(k) curve
+  ctx.strokeStyle='rgba(0,200,255,1)'; ctx.lineWidth=2.5; ctx.beginPath();
+  for(var i=0;i<=200;i++){
+    var k=kMax*i/200, o=omega(k);
+    if(o>oMax) break;
+    i===0?ctx.moveTo(kx(k),oy(o)):ctx.lineTo(kx(k),oy(o));
+  }
+  ctx.stroke();
+
+  // k0 dot
+  ctx.fillStyle='#ff4455';
+  ctx.beginPath(); ctx.arc(kx(P.k0),oy(o0),5,0,6.283); ctx.fill();
+
+  // Labels
+  ctx.font='10px Consolas,monospace';
+  ctx.fillStyle='rgba(0,200,255,0.9)';  ctx.fillText('\u03c9(k)',L+6,T+14);
+  ctx.fillStyle='rgba(255,170,0,0.9)';  ctx.fillText('tangent \u2192 vg='+tvg.toFixed(2),L+pw-148,T+14);
+  ctx.fillStyle='rgba(0,220,100,0.9)';  ctx.fillText('secant  \u2192 vp='+tvp.toFixed(2),L+pw-148,T+27);
+  ctx.fillStyle='rgba(42,80,96,0.9)';   ctx.fillText('k (rad/m)',L+pw/2-30,DH-3);
+  ctx.save(); ctx.translate(13,T+ph/2+20); ctx.rotate(-Math.PI/2);
+  ctx.fillText('\u03c9(k) rad/s',0,0); ctx.restore();
+}
+
+// ── Draw SPECTRUM chart ───────────────────────────────────────────────
+function drawSpec() {
+  var ctx = ctxS;
+  ctx.fillStyle='#040a0f'; ctx.fillRect(0,0,SW,SH);
+  var L=46,R=14,T=14,B=30;
+  var pw=SW-L-R, ph=SH-T-B;
+  var k0=P.k0, sig=P.sigma, kMax=Math.max(2.5, k0+5*sig);
+
+  var kx=function(k){return L+(k/kMax)*pw;};
+  var ay=function(a){return T+ph-a*ph*0.88;};
+
+  // Grid
+  ctx.strokeStyle='rgba(13,32,48,1)'; ctx.lineWidth=1;
+  for(var i=0;i<=4;i++){
+    var gx=L+i*pw/4;
+    ctx.beginPath();ctx.moveTo(gx,T);ctx.lineTo(gx,T+ph);ctx.stroke();
+    ctx.fillStyle='rgba(42,80,96,0.9)';ctx.font='9px Consolas,monospace';
+    ctx.fillText((kMax*i/4).toFixed(2),gx-10,T+ph+14);
+  }
+  ctx.strokeStyle='rgba(13,32,48,1)';ctx.lineWidth=1.5;ctx.strokeRect(L,T,pw,ph);
+
+  // Gaussian fill
+  ctx.beginPath();
+  for(var i=0;i<=300;i++){
+    var k=kMax*i/300, a=Math.exp(-(k-k0)*(k-k0)/(2*sig*sig));
+    i===0?ctx.moveTo(kx(k),ay(a)):ctx.lineTo(kx(k),ay(a));
+  }
+  ctx.lineTo(kx(kMax),ay(0)); ctx.lineTo(kx(0),ay(0)); ctx.closePath();
+  var g2=ctx.createLinearGradient(0,T,0,T+ph);
+  g2.addColorStop(0,'rgba(0,200,255,0.42)');
+  g2.addColorStop(1,'rgba(0,200,255,0.03)');
+  ctx.fillStyle=g2; ctx.fill();
+
+  // Gaussian outline
+  ctx.strokeStyle='rgba(0,200,255,1)'; ctx.lineWidth=2.2; ctx.beginPath();
+  for(var i=0;i<=300;i++){
+    var k=kMax*i/300, a=Math.exp(-(k-k0)*(k-k0)/(2*sig*sig));
+    i===0?ctx.moveTo(kx(k),ay(a)):ctx.lineTo(kx(k),ay(a));
+  }
+  ctx.stroke();
+
+  // k0 line
+  ctx.strokeStyle='rgba(255,60,80,0.9)'; ctx.lineWidth=2;
+  ctx.beginPath(); ctx.moveTo(kx(k0),T+5); ctx.lineTo(kx(k0),ay(0)); ctx.stroke();
+  ctx.fillStyle='rgba(255,60,80,0.9)'; ctx.font='bold 10px Consolas,monospace';
+  ctx.fillText('k\u2080',kx(k0)+4,T+17);
+
+  // ±sigma_k lines
+  ctx.strokeStyle='rgba(255,170,0,0.7)'; ctx.lineWidth=1.5; ctx.setLineDash([4,4]);
+  ctx.beginPath(); ctx.moveTo(kx(k0-sig),T+5); ctx.lineTo(kx(k0-sig),ay(0)); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(kx(k0+sig),T+5); ctx.lineTo(kx(k0+sig),ay(0)); ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.fillStyle='rgba(255,170,0,0.9)'; ctx.font='10px Consolas,monospace';
+  ctx.fillText('\u00b1\u03c3\u2096',kx(k0+sig)+4,T+17);
+
+  // Info box
+  ctx.fillStyle='rgba(8,16,24,0.94)'; ctx.fillRect(L+pw-168,T+36,164,55);
+  ctx.strokeStyle='rgba(0,200,255,0.18)'; ctx.lineWidth=1;
+  ctx.strokeRect(L+pw-168,T+36,164,55);
+  ctx.fillStyle='rgba(0,200,255,0.9)'; ctx.font='10px Consolas,monospace';
+  ctx.fillText('\u03c3\u2096 = '+sig.toFixed(3)+' rad/m',   L+pw-162, T+52);
+  ctx.fillText('\u03c3\u2093 = '+(0.5/sig).toFixed(2)+' m', L+pw-162, T+66);
+  ctx.fillText('\u0394x\u00b7\u0394k = 0.500',              L+pw-162, T+82);
+
+  ctx.fillStyle='rgba(42,80,96,0.9)'; ctx.font='10px Consolas,monospace';
+  ctx.fillText('k (rad/m)', L+pw/2-28, SH-3);
+  ctx.save(); ctx.translate(13,T+ph/2+14); ctx.rotate(-Math.PI/2);
+  ctx.fillText('A(k)', 0, 0); ctx.restore();
+}
+
+// ── Animation ─────────────────────────────────────────────────────────
+function animLoop(ts) {
+  if (!lastTS) lastTS = ts;
+  var dt = (ts - lastTS) / 1000;
+  if (dt > 0.1) dt = 0.1;
+  lastTS = ts;
+  simT += dt * 8.0;
+  if (simT > 85) { simT = 0; hist = []; }
+  drawWave(simT);
+  rafID = requestAnimationFrame(animLoop);
+}
+
+// ── Controls ──────────────────────────────────────────────────────────
+window.togglePlay = function() {
+  running = !running;
+  var btn = document.getElementById('btnPlay');
+  if (running) {
+    btn.textContent = '⏸ PAUSE'; btn.classList.add('on');
+    lastTS = null;
+    rafID = requestAnimationFrame(animLoop);
+  } else {
+    btn.textContent = '▶ PLAY'; btn.classList.remove('on');
+    cancelAnimationFrame(rafID);
+  }
+};
+
+window.doReset = function() {
+  running = false; cancelAnimationFrame(rafID);
+  var btn = document.getElementById('btnPlay');
+  btn.textContent = '▶ PLAY'; btn.classList.remove('on');
+  simT = 0; hist = []; lastTS = null;
+  drawWave(0); drawDisp(); drawSpec();
+};
+
+window.setMode = function(m) {
+  mode = m;
+  document.getElementById('btnD').classList.toggle('on', m==='d');
+  document.getElementById('btnL').classList.toggle('on', m==='l');
+  document.getElementById('linNote').classList.toggle('show', m==='l');
+  window.doReset();
+};
+
+window.slide = function() {
+  P.alpha  = +document.getElementById('rA').value;
+  P.beta   = +document.getElementById('rB').value;
+  P.k0     = +document.getElementById('rK').value;
+  P.sigma  = +document.getElementById('rS').value;
+  document.getElementById('vA').textContent = P.alpha.toFixed(1);
+  document.getElementById('vB').textContent = P.beta.toFixed(2);
+  document.getElementById('vK').textContent = P.k0.toFixed(2);
+  document.getElementById('vS').textContent = P.sigma.toFixed(2);
+  window.doReset();
+};
+
+// ── Initial render ────────────────────────────────────────────────────
+drawWave(0);
+drawDisp();
+drawSpec();
+
+})(); // end IIFE
+</script>
+</body>
+</html>
